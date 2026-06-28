@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ruang Gambar Kita ❤️</title>
     <style>
-        /* ========================================================
-           1. CSS (GAYA TAMPILAN) - Membuat desain estetik & pinky
-           ======================================================== */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #ffe6e6;
@@ -16,7 +13,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
             min-height: 100vh;
         }
 
@@ -24,7 +20,6 @@
             color: #ff4d6d;
             margin: 15px 0 5px 0;
             font-size: 20px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
 
         p {
@@ -32,10 +27,8 @@
             margin: 0 0 15px 0;
             font-size: 12px;
             text-align: center;
-            padding: 0 10px;
         }
 
-        /* Kontainer Utama */
         .container {
             position: relative;
             background: white;
@@ -45,10 +38,9 @@
             border: 3px solid #ffb3c1;
             width: 90%;
             max-width: 800px;
-            height: 60vh; /* Tinggi kanvas menyesuaikan layar HP */
+            height: 60vh;
         }
 
-        /* Kanvas Gambar */
         canvas {
             display: block;
             cursor: crosshair;
@@ -57,7 +49,6 @@
             height: 100%;
         }
 
-        /* Panel Tombol Kontrol di Bawah */
         .controls {
             position: absolute;
             bottom: 15px;
@@ -75,7 +66,6 @@
             width: 85%;
         }
 
-        /* Gaya Tombol & Input */
         button, input[type="color"], input[type="range"] {
             border: none;
             background: #ff4d6d;
@@ -87,38 +77,21 @@
             font-size: 11px;
         }
 
-        .btn-invite {
-            background: #4caf50;
-        }
-
-        .btn-clear {
-            background: #757575;
-        }
-
-        label {
-            font-size: 11px;
-            color: #444;
-            font-weight: bold;
-        }
-
-        input[type="range"] {
-            width: 60px;
-            padding: 0;
-        }
+        .btn-invite { background: #4caf50; }
+        .btn-clear { background: #757575; }
+        label { font-size: 11px; color: #444; font-weight: bold; }
+        input[type="range"] { width: 60px; padding: 0; }
     </style>
 </head>
 <body>
 
     <h1>Ruang Gambar Kita ❤️</h1>
-    <p>Klik "Ajak Pacar", lalu bagikan link undangannya ke WhatsApp pacarmu!</p>
+    <p id="status-text">Menghubungkan ke ruang gambar...</p>
 
     <div class="container">
-        <!-- Area Kanvas tempat mencoret-coret -->
         <canvas id="paintCanvas"></canvas>
-
-        <!-- Menu Kontrol -->
         <div class="controls">
-            <button class="btn-invite" onclick="TogetherJS(this); return false;">Ajak Pacar</button>
+            <button class="btn-invite" id="shareBtn">Bagikan Link ke Pacar</button>
             
             <label for="colorPicker">Warna:</label>
             <input type="color" id="colorPicker" value="#ff4d6d">
@@ -130,28 +103,38 @@
         </div>
     </div>
 
-    <!-- ========================================================
-       2. JAVASCRIPT (LIBRARY) - Untuk fitur LDR / Real-time sync
-       ======================================================== */ -->
-    <script>
-        // Konfigurasi TogetherJS agar pas untuk pacaran (mematikan fitur chat publik bawaan)
-        var TogetherJSConfig_siteName = "Kanvas Cinta Kita";
-        var TogetherJSConfig_toolName = "Ajak Pacar";
-        var TogetherJSConfig_disableWebRTC = true; 
-    </script>
-    <script src="https://togetherjs.com/togetherjs-min.js"></script>
+    <!-- SCRIPT 1: Firebase Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <!-- ========================================================
-       3. JAVASCRIPT (LOGIKA) - Mengatur coretan jari di layar HP
-       ======================================================== */ -->
+    <!-- SCRIPT 2: Logika Aplikasi (Real-time Drawing) -->
     <script>
+        // Konfigurasi Firebase Publik (Gratis & Siap Pakai)
+        const firebaseConfig = {
+            databaseURL: "https://kanvas-ldr-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Mengatur ID Ruangan unik (mengambil dari URL jika ada, jika tidak ada buat baru)
+        let urlParams = new URLSearchParams(window.location.search);
+        let roomId = urlParams.get('room');
+        
+        if (!roomId) {
+            roomId = Math.random().toString(36).substring(2, 9);
+            window.history.pushState({}, '', '?room=' + roomId);
+        }
+
+        const roomRef = database.ref('rooms/' + roomId);
+        document.getElementById('status-text').innerText = "Kamu ada di ruang gambar. Bagikan link ke pacarmu!";
+
+        // Setup Kanvas
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
         const colorPicker = document.getElementById('colorPicker');
         const lineWidthInput = document.getElementById('lineWidth');
         const clearBtn = document.getElementById('clearBtn');
 
-        // Menyesuaikan ukuran resolusi internal kanvas dengan layar asli HP
         function resizeCanvas() {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
@@ -161,50 +144,95 @@
 
         let painting = false;
 
+        // Fungsi mengirim data coretan ke Firebase
+        function sendDrawData(x, y, isDrawing) {
+            roomRef.push({
+                x: x,
+                y: y,
+                color: colorPicker.value,
+                size: lineWidthInput.value,
+                isDrawing: isDrawing,
+                time: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        // Event saat mulai mencoret
         function startPosition(e) {
             painting = true;
-            draw(e);
+            const coords = getCoords(e);
+            sendDrawData(coords.x, coords.y, false); // false = mulai garis baru
         }
 
         function finishedPosition() {
             painting = false;
-            ctx.beginPath();
         }
 
         function draw(e) {
             if (!painting) return;
-
-            const rect = canvas.getBoundingClientRect();
-            // Mendukung koordinat sentuhan HP (touches) maupun mouse laptop
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
-
-            ctx.lineWidth = lineWidthInput.value;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = colorPicker.value;
-
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
+            const coords = getCoords(e);
+            sendDrawData(coords.x, coords.y, true); // true = sedang menarik garis
         }
 
-        // Deteksi Sentuhan Layar HP (Touchscreen)
+        // Listener Event (HP & Laptop)
         canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
         canvas.addEventListener('touchend', finishedPosition);
         canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
 
-        // Deteksi Mouse (Jika pacarmu buka di laptop)
         canvas.addEventListener('mousedown', startPosition);
         canvas.addEventListener('mouseup', finishedPosition);
         canvas.addEventListener('mousemove', draw);
 
-        // Tombol Hapus Semua
+        // Menerima coretan dari Firebase secara real-time
+        let lastX = null;
+        let lastY = null;
+
+        roomRef.limitToLast(100).on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            if (data === "clear") {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                lastX = null;
+                lastY = null;
+                return;
+            }
+
+            ctx.lineWidth = data.size;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = data.color;
+
+            if (data.isDrawing && lastX !== null && lastY !== null) {
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(data.x, data.y);
+                ctx.stroke();
+            }
+
+            lastX = data.x;
+            lastY = data.y;
+        });
+
+        // Tombol Hapus
         clearBtn.addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            roomRef.set({ "clear": "clear" });
+        });
+
+        // Tombol Bagikan Link
+        document.getElementById('shareBtn').addEventListener('click', () => {
+            const currentUrl = window.location.href;
+            navigator.clipboard.writeText(currentUrl).then(() => {
+                alert("Link berhasil disalin! Tinggal kamu paste/kirim ke WA pacarmu ya.");
+            }).catch(err => {
+                alert("Gagal menyalin otomatis. Silakan salin URL browser kamu manual dan kirim ke pacar.");
+            });
         });
     </script>
 
