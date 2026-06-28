@@ -167,12 +167,14 @@
 
     <!-- Area Kanvas -->
     <div class="canvas-container">
+        <!-- Canvas 1: Selalu Canvas Milik Sendiri (Bisa Digambar) -->
         <div class="canvas-box" id="box1">
-            <div class="canvas-label" id="label1">Kanvas P1 <span id="status1" style="font-weight: normal; font-size: 10px; margin-left: 5px;"></span></div>
+            <div class="canvas-label" id="label1">Kanvas Kamu <span id="status1" style="font-weight: normal; font-size: 10px; margin-left: 5px;"></span></div>
             <canvas id="canvas1"></canvas>
         </div>
-        <div class="canvas-box" id="box2">
-            <div class="canvas-label" id="label2" style="background:var(--secondary);">Kanvas P2 <span id="status2" style="font-weight: normal; font-size: 10px; margin-left: 5px;"></span></div>
+        <!-- Canvas 2: Selalu Canvas Pacar (Read-Only) -->
+        <div class="canvas-box disabled-canvas" id="box2" style="pointer-events: none;">
+            <div class="canvas-label" id="label2" style="background:var(--secondary);">Kanvas Pacar <span id="status2" style="font-weight: normal; font-size: 10px; margin-left: 5px;"></span></div>
             <canvas id="canvas2"></canvas>
         </div>
     </div>
@@ -210,91 +212,71 @@
         }
         const db = firebase.database();
 
-        // 2. Setup ID Room dari URL
+        // 2. Client ID Otomatis
+        let clientId = localStorage.getItem('ldr_client_id');
+        if (!clientId) {
+            clientId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
+            localStorage.setItem('ldr_client_id', clientId);
+        }
+        console.log("clientId saya:", clientId);
+
+        // 3. Setup ID Room dari URL
         const urlParams = new URLSearchParams(window.location.search);
         let roomId = urlParams.get('room');
-        
         if (!roomId) {
             roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
             window.history.replaceState({}, '', `?room=${roomId}`);
         }
 
-        // 3. Menentukan Role Otomatis (UserA / UserB) dengan Firebase & LocalStorage
-        let myRole = localStorage.getItem(`role_${roomId}`);
-        let partnerRole = null;
+        // 4. Setup Canvas
+        const myCanvas = document.getElementById('canvas1');
+        const partnerCanvas = document.getElementById('canvas2');
+        const myCtx = myCanvas.getContext('2d');
+        const partnerCtx = partnerCanvas.getContext('2d');
 
-        db.ref(`rooms/${roomId}/roles`).once('value', (snap) => {
-            const roles = snap.val() || {};
-            if (!myRole) {
-                if (!roles.userA) {
-                    myRole = 'userA';
-                    db.ref(`rooms/${roomId}/roles/userA`).set(true);
-                } else {
-                    myRole = 'userB';
-                    db.ref(`rooms/${roomId}/roles/userB`).set(true);
-                }
-                localStorage.setItem(`role_${roomId}`, myRole);
-            }
-            partnerRole = myRole === 'userA' ? 'userB' : 'userA';
-            
-            // LOG DEBUGGING Sesuai Permintaan
-            console.log("====================================");
-            console.log(`Saya adalah ${myRole}`);
-            console.log(`Pasangan saya adalah ${partnerRole}`);
-            console.log("====================================");
-            
-            initApp();
-        });
+        function fixCanvasSize() {
+            [myCanvas, partnerCanvas].forEach(c => {
+                const rect = c.parentElement.getBoundingClientRect();
+                c.width = rect.width - 10;
+                c.height = rect.height - 10;
+            });
+            redrawCanvas(myActions, myUndoneStrokes, myCtx, myCanvas);
+            redrawCanvas(partnerActions, partnerUndoneStrokes, partnerCtx, partnerCanvas);
+        }
+        window.addEventListener('resize', fixCanvasSize);
+        setTimeout(fixCanvasSize, 100);
 
-        // 4. Inisialisasi Aplikasi Utama
-        let myCtx, partnerCtx, myCanvas, partnerCanvas;
-        let myDrawRef, partnerDrawRef;
+        // State & Variabel
         let processedIds = new Set();
         let myActions = [], partnerActions = [];
         let myUndoneStrokes = new Set(), partnerUndoneStrokes = new Set();
         let myStrokeHistory = [], myRedoStack = [];
-
-        function initApp() {
-            myCanvas = document.getElementById('canvas1');
-            partnerCanvas = document.getElementById('canvas2');
-            myCtx = myCanvas.getContext('2d');
-            partnerCtx = partnerCanvas.getContext('2d');
-
-            // CANVAS PACAR DIBUAT READ-ONLY!
-            document.getElementById('box2').classList.add('disabled-canvas');
-            partnerCanvas.style.pointerEvents = 'none';
-
-            // Ganti Label sesuai posisi
-            document.getElementById('label1').innerHTML = 'Kanvas Kamu <span id="status1"></span>';
-            document.getElementById('label2').innerHTML = 'Kanvas Pacar <span id="status2"></span>';
-
-            // Referensi Database Terpisah
-            myDrawRef = db.ref(`rooms/${roomId}/${myRole}/strokes`);
-            partnerDrawRef = db.ref(`rooms/${roomId}/${partnerRole}/strokes`);
-
-            setupCanvasSizing();
-            setupTools();
-            setupFirebaseListeners();
-            setupDrawingEngine();
-            setupPresence();
-        }
-
-        function setupCanvasSizing() {
-            function fixCanvasSize() {
-                [myCanvas, partnerCanvas].forEach(c => {
-                    const rect = c.parentElement.getBoundingClientRect();
-                    c.width = rect.width - 10;
-                    c.height = rect.height - 10;
-                });
-                redrawCanvas(myActions, myUndoneStrokes, myCtx, myCanvas);
-                redrawCanvas(partnerActions, partnerUndoneStrokes, partnerCtx, partnerCanvas);
-            }
-            window.addEventListener('resize', fixCanvasSize);
-            setTimeout(fixCanvasSize, 100);
-        }
-
-        // 5. Setup Tools (Draw, Erase)
         let currentTool = 'draw';
+        let otherId = null;
+
+        // Referensi Node Sendiri
+        const myDrawRef = db.ref(`rooms/${roomId}/drawings/${clientId}`);
+        const participantsRef = db.ref(`rooms/${roomId}/participants`);
+
+        // Daftarkan Diri ke Room
+        participantsRef.child(clientId).set(true).then(() => {
+            console.log("participant baru teregistrasi");
+        });
+
+        // Cari Pasangan (Listen on Participants)
+        participantsRef.on('child_added', snap => {
+            const id = snap.key;
+            console.log("participant ditemukan:", id);
+            
+            // Jika participant yang masuk BUKAN saya, dan belum ada partner tersimpan
+            if (id !== clientId && !otherId) {
+                otherId = id;
+                setupPartnerListener(otherId);
+                setupPartnerPresence(otherId);
+            }
+        });
+
+        // 5. Tools Engine
         window.setTool = function(tool) {
             currentTool = tool;
             document.getElementById('btnDraw').classList.toggle('active', tool === 'draw');
@@ -326,11 +308,9 @@
             });
         }
 
-        // 6. ENGINE MENGGAMBAR (MENCEGAH SPAM REQUEST)
+        // 6. DRAWING ENGINE (Hanya di Canvas Saya)
         let isDrawing = false;
-        let lastPos = null;
-        let currentPos = null;
-        let currentStrokeId = null;
+        let lastPos = null, currentPos = null, currentStrokeId = null;
 
         function getMousePos(e) {
             const rect = myCanvas.getBoundingClientRect();
@@ -340,75 +320,71 @@
         }
 
         function setTyping(status) {
-            db.ref(`rooms/${roomId}/presence/${myRole}/typing`).set(status);
+            db.ref(`rooms/${roomId}/presence/${clientId}/typing`).set(status);
         }
 
-        function setupDrawingEngine() {
-            myCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
-            myCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); updatePosition(e); });
-            myCanvas.addEventListener('touchend', finishedPosition);
-            
-            myCanvas.addEventListener('mousedown', startPosition);
-            myCanvas.addEventListener('mousemove', updatePosition);
-            myCanvas.addEventListener('mouseup', finishedPosition);
-            myCanvas.addEventListener('mouseleave', finishedPosition);
+        myCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
+        myCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); updatePosition(e); });
+        myCanvas.addEventListener('touchend', finishedPosition);
+        
+        myCanvas.addEventListener('mousedown', startPosition);
+        myCanvas.addEventListener('mousemove', updatePosition);
+        myCanvas.addEventListener('mouseup', finishedPosition);
+        myCanvas.addEventListener('mouseleave', finishedPosition);
 
-            function startPosition(e) {
-                isDrawing = true;
-                currentStrokeId = generateId();
-                myStrokeHistory.push(currentStrokeId);
-                myRedoStack = [];
-                lastPos = getMousePos(e);
-                currentPos = { ...lastPos };
-                setTyping(true);
+        function startPosition(e) {
+            isDrawing = true;
+            currentStrokeId = generateId();
+            myStrokeHistory.push(currentStrokeId);
+            myRedoStack = [];
+            lastPos = getMousePos(e);
+            currentPos = { ...lastPos };
+            setTyping(true);
+        }
+
+        function updatePosition(e) {
+            if (isDrawing) currentPos = getMousePos(e);
+        }
+
+        function finishedPosition() {
+            if (isDrawing) {
+                isDrawing = false;
+                setTyping(false);
             }
+        }
 
-            function updatePosition(e) {
-                if (isDrawing) currentPos = getMousePos(e);
-            }
+        function drawEngine() {
+            if (isDrawing && currentPos && lastPos) {
+                if (currentPos.x !== lastPos.x || currentPos.y !== lastPos.y) {
+                    const action = {
+                        type: currentTool,
+                        x: parseFloat(currentPos.x.toFixed(2)),
+                        y: parseFloat(currentPos.y.toFixed(2)),
+                        prevX: parseFloat(lastPos.x.toFixed(2)),
+                        prevY: parseFloat(lastPos.y.toFixed(2)),
+                        color: currentTool === 'erase' ? '#fdfdfd' : colorPicker.value,
+                        size: sizePicker.value,
+                        strokeId: currentStrokeId,
+                        id: generateId()
+                    };
 
-            function finishedPosition() {
-                if (isDrawing) {
-                    isDrawing = false;
-                    setTyping(false);
+                    drawLocalStroke(action, myCtx);
+                    processedIds.add(action.id);
+                    myActions.push(action);
+                    
+                    myDrawRef.push(action).then(() => {
+                        console.log("stroke terkirim");
+                    });
+                    
+                    lastPos = { ...currentPos };
                 }
-            }
-
-            // Engine loop 60fps
-            function drawEngine() {
-                if (isDrawing && currentPos && lastPos) {
-                    if (currentPos.x !== lastPos.x || currentPos.y !== lastPos.y) {
-                        const action = {
-                            type: currentTool,
-                            x: parseFloat(currentPos.x.toFixed(2)), // Optimasi beban database
-                            y: parseFloat(currentPos.y.toFixed(2)),
-                            prevX: parseFloat(lastPos.x.toFixed(2)),
-                            prevY: parseFloat(lastPos.y.toFixed(2)),
-                            color: currentTool === 'erase' ? '#fdfdfd' : colorPicker.value,
-                            size: sizePicker.value,
-                            strokeId: currentStrokeId,
-                            id: generateId()
-                        };
-
-                        // Tampilkan di canvas sendiri langsung (tanpa nunggu server)
-                        drawLocalStroke(action, myCtx);
-
-                        // Tandai action ini supaya tidak tergambar dua kali saat balik dari Firebase (Anti-Loop)
-                        processedIds.add(action.id);
-                        myActions.push(action);
-
-                        console.log("Mengirim stroke...");
-                        myDrawRef.push(action); // HANYA upload ke node milik saya sendiri
-                        
-                        lastPos = { ...currentPos };
-                    }
-                }
-                requestAnimationFrame(drawEngine);
             }
             requestAnimationFrame(drawEngine);
         }
+        requestAnimationFrame(drawEngine);
 
-        // 7. FIREBASE LISTENERS (MEMUAT HISTORY SAAT MASUK & SINKRONISASI REALTIME)
+        // 7. FIREBASE LISTENERS (Sinkronisasi & Histori)
+
         function processIncomingAction(action, actionList, undoneSet, ctx, canvas) {
             if (action.type === 'undo') {
                 undoneSet.add(action.strokeId);
@@ -423,36 +399,41 @@
             }
         }
 
-        function setupFirebaseListeners() {
-            // Menerima histori gambar SENDIRI jika halaman di refresh
-            myDrawRef.on('child_added', snap => {
-                const action = snap.val();
-                if (!processedIds.has(action.id)) {
-                    processedIds.add(action.id);
-                    myActions.push(action);
-                    processIncomingAction(action, myActions, myUndoneStrokes, myCtx, myCanvas);
-                }
-            });
+        // Listener untuk me-load histori gambar SENDIRI
+        myDrawRef.on('child_added', snap => {
+            const action = snap.val();
+            if (!processedIds.has(action.id)) {
+                processedIds.add(action.id);
+                myActions.push(action);
+                processIncomingAction(action, myActions, myUndoneStrokes, myCtx, myCanvas);
+            }
+        });
 
-            // Menerima coretan PASANGAN (Langsung ditaruh di Canvas Pacar)
+        // Listener untuk menerima gambar PASANGAN (Ditargetkan ke Canvas 2)
+        function setupPartnerListener(partnerId) {
+            console.log("listener aktif untuk pasangan:", partnerId);
+            const partnerDrawRef = db.ref(`rooms/${roomId}/drawings/${partnerId}`);
+            
             partnerDrawRef.on('child_added', snap => {
                 const action = snap.val();
                 if (!processedIds.has(action.id)) {
-                    console.log("Menerima stroke pasangan...");
+                    console.log("stroke diterima");
                     processedIds.add(action.id);
                     partnerActions.push(action);
                     processIncomingAction(action, partnerActions, partnerUndoneStrokes, partnerCtx, partnerCanvas);
                 }
+            }, err => {
+                console.log("listener gagal", err);
             });
-
-            // Sistem Tantangan Sinkron
-            const challengeRef = db.ref(`rooms/${roomId}/challenge`);
-            const challenges = ["🍎 Gambar Apel!", "🐱 Gambar Kucing", "🏠 Rumah Idaman", "🍕 Makanan Kesukaan", "❤️ Gambar Hati", "👽 Alien Nyasar", "🚗 Mobil Impian"];
-            window.randomChallenge = () => challengeRef.set(challenges[Math.floor(Math.random() * challenges.length)]);
-            challengeRef.on('value', snap => { if (snap.val()) document.getElementById('challengeText').innerText = "Tantangan: " + snap.val(); });
         }
 
-        // 8. FITUR MENGHAPUS & UNDO/REDO (HANYA BERLAKU DI KANVAS SENDIRI)
+        // Sistem Tantangan Sinkron
+        const challengeRef = db.ref(`rooms/${roomId}/challenge`);
+        const challenges = ["🍎 Gambar Apel!", "🐱 Gambar Kucing", "🏠 Rumah Idaman", "🍕 Makanan Kesukaan", "❤️ Gambar Hati", "👽 Alien Nyasar", "🚗 Mobil Impian"];
+        window.randomChallenge = () => challengeRef.set(challenges[Math.floor(Math.random() * challenges.length)]);
+        challengeRef.on('value', snap => { if (snap.val()) document.getElementById('challengeText').innerText = "Tantangan: " + snap.val(); });
+
+        // 8. UNDO/REDO/CLEAR (Hanya berlaku untuk Kanvas Sendiri)
         window.undo = () => {
             if (myStrokeHistory.length > 0) {
                 const strokeId = myStrokeHistory.pop();
@@ -491,34 +472,30 @@
         };
 
         // 9. STATUS ONLINE & MENGETIK
-        function setupPresence() {
-            const myPresenceRef = db.ref(`rooms/${roomId}/presence/${myRole}`);
-            const partnerPresenceRef = db.ref(`rooms/${roomId}/presence/${partnerRole}`);
+        const myPresenceRef = db.ref(`rooms/${roomId}/presence/${clientId}`);
+        myPresenceRef.onDisconnect().set({ online: false, typing: false });
+        myPresenceRef.set({ online: true, typing: false });
 
-            myPresenceRef.onDisconnect().set({ online: false, typing: false });
-            myPresenceRef.set({ online: true, typing: false });
+        document.getElementById('status1').innerText = "(🟢 Online)";
+        document.getElementById('status1').style.color = "#4caf50";
 
-            // UI Status Sendiri
-            const myStatus = document.getElementById('status1');
-            myStatus.innerText = "(🟢 Online)";
-            myStatus.style.color = "#4caf50";
-
-            // Pantau Status Pasangan
+        function setupPartnerPresence(partnerId) {
+            const partnerPresenceRef = db.ref(`rooms/${roomId}/presence/${partnerId}`);
             partnerPresenceRef.on('value', snap => {
                 const data = snap.val();
                 const partnerStatus = document.getElementById('status2');
                 if (data && data.online) {
                     if (data.typing) {
-                        partnerStatus.innerText = "❤️ Pacar sedang menggambar...";
+                        partnerStatus.innerText = "❤️ Sedang menggambar...";
                         partnerStatus.style.color = "#ff4d6d";
                         partnerStatus.style.fontWeight = "bold";
                     } else {
-                        partnerStatus.innerText = "🟢 Pacar Online";
+                        partnerStatus.innerText = "🟢 Online";
                         partnerStatus.style.color = "#4caf50";
                         partnerStatus.style.fontWeight = "normal";
                     }
                 } else {
-                    partnerStatus.innerText = "⚪ Menunggu pasangan...";
+                    partnerStatus.innerText = "⚪ Menunggu...";
                     partnerStatus.style.color = "#888";
                     partnerStatus.style.fontWeight = "normal";
                 }
@@ -529,7 +506,7 @@
         document.getElementById('shareBtn').addEventListener('click', () => {
             const linkBuatPacar = `${window.location.href.split('?')[0]}?room=${roomId}`;
             navigator.clipboard.writeText(linkBuatPacar).then(() => {
-                alert("Link berhasil disalin! Silakan kirim ke WA pasangan, jika di-klik dia otomatis masuk ke room ini secara real-time.");
+                alert("Link berhasil disalin! Silakan kirim ke WA pasangan.");
             }).catch(() => prompt("Salin manual teks ini:", linkBuatPacar));
         });
 
@@ -546,10 +523,9 @@
             tempCanvas.height = myCanvas.height + partnerCanvas.height + 20; 
             const tCtx = tempCanvas.getContext('2d');
             
-            tCtx.fillStyle = '#fff0f3'; // Background tema LDR
+            tCtx.fillStyle = '#fff0f3';
             tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             
-            // Susun Kanvas Saya di Atas, Kanvas Pacar di Bawah
             tCtx.drawImage(myCanvas, 0, 0);
             tCtx.drawImage(partnerCanvas, 0, myCanvas.height + 20);
 
