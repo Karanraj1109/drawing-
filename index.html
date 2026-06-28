@@ -2,239 +2,287 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruang Gambar Kita ❤️</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Couple Art Challenge ❤️</title>
     <style>
+        /* ========================================================
+           1. MODERN UI / CSS STYLING
+           ======================================================== */
+        :root {
+            --primary: #ff4d6d;
+            --secondary: #ff8fa3;
+            --bg: #fff0f3;
+            --surface: #ffffff;
+            --text: #590d22;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #ffe6e6;
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
-            padding: 0;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        h1 {
-            color: #ff4d6d;
-            margin: 15px 0 5px 0;
-            font-size: 20px;
-        }
-
-        p {
-            color: #666;
-            margin: 0 0 15px 0;
-            font-size: 12px;
+        /* Header & Challenge Area */
+        .header {
             text-align: center;
+            width: 100%;
+            max-width: 600px;
+            background: var(--surface);
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(255, 77, 109, 0.1);
+            margin-bottom: 15px;
+            position: relative;
         }
 
-        .container {
-            position: relative;
-            background: white;
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: var(--primary);
+        }
+
+        .challenge-box {
+            background: var(--bg);
+            border: 2px dashed var(--secondary);
+            border-radius: 12px;
+            padding: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-challenge {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(255, 77, 109, 0.3);
+            transition: 0.2s;
+        }
+
+        .btn-challenge:active { transform: scale(0.95); }
+
+        /* Canvas Wrapper - Dua Canvas */
+        .canvas-container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 90px; /* Space for toolbar */
+        }
+
+        .canvas-box {
+            background: var(--surface);
             border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            border: 3px solid #ffb3c1;
-            width: 90%;
-            max-width: 800px;
-            height: 60vh;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            padding: 10px;
+            position: relative;
+        }
+
+        .canvas-label {
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
         }
 
         canvas {
-            display: block;
-            cursor: crosshair;
-            background-color: #ffffff;
             width: 100%;
-            height: 100%;
+            height: 30vh; /* Ideal untuk 2 canvas di layar HP */
+            background-color: #fcfcfc;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            touch-action: none; /* Cegah layar scroll saat nggambar */
+            cursor: crosshair;
         }
 
-        .controls {
-            position: absolute;
+        /* Toolbar / Alat Gambar di Bawah */
+        .toolbar {
+            position: fixed;
             bottom: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            width: 90%;
+            max-width: 600px;
             background: rgba(255, 255, 255, 0.95);
-            padding: 8px 15px;
-            border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            padding: 12px;
+            border-radius: 25px;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
             align-items: center;
-            justify-content: center;
-            width: 85%;
+            flex-wrap: wrap;
+            z-index: 100;
+            gap: 10px;
         }
 
-        button, input[type="color"], input[type="range"] {
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="color"] {
+            width: 35px;
+            height: 35px;
             border: none;
-            background: #ff4d6d;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
+            border-radius: 50%;
             cursor: pointer;
-            font-weight: bold;
-            font-size: 11px;
+            background: none;
         }
 
-        .btn-invite { background: #4caf50; }
-        .btn-clear { background: #757575; }
-        label { font-size: 11px; color: #444; font-weight: bold; }
-        input[type="range"] { width: 60px; padding: 0; }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
+
+        input[type="range"] { width: 80px; }
+
+        .btn-tool {
+            background: #eee;
+            border: none;
+            padding: 8px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-tool.active { background: var(--primary); color: white; }
+        .btn-action {
+            background: var(--text);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .btn-share { background: #4caf50; }
+
+        /* Disable touch visual for the other person's canvas */
+        .disabled-canvas { opacity: 0.8; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <h1>Ruang Gambar Kita ❤️</h1>
-    <p id="status-text">Menghubungkan ke ruang gambar...</p>
+    <div class="header">
+        <h1>🎨 Couple Art Challenge</h1>
+        <div class="challenge-box">
+            <span id="challengeText">Tantangan: 🍎 Gambar Apel!</span>
+            <button class="btn-challenge" onclick="generateChallenge()">Ganti Ide</button>
+        </div>
+        <button class="btn-action btn-share" id="shareBtn" style="margin-top:10px; width:100%;">Salin Link Ajakan buat Pacar 💌</button>
+    </div>
 
-    <div class="container">
-        <canvas id="paintCanvas"></canvas>
-        <div class="controls">
-            <button class="btn-invite" id="shareBtn">Bagikan Link ke Pacar</button>
-            
-            <label for="colorPicker">Warna:</label>
-            <input type="color" id="colorPicker" value="#ff4d6d">
-
-            <label for="lineWidth">Ukuran:</label>
-            <input type="range" id="lineWidth" min="1" max="20" value="5">
-
-            <button class="btn-clear" id="clearBtn">Hapus</button>
+    <div class="canvas-container">
+        <!-- Canvas 1 (Pemain 1) -->
+        <div class="canvas-box" id="box1">
+            <div class="canvas-label" id="label1">Kanvas Kamu</div>
+            <canvas id="canvas1"></canvas>
+        </div>
+        
+        <!-- Canvas 2 (Pemain 2) -->
+        <div class="canvas-box" id="box2">
+            <div class="canvas-label" id="label2" style="background:var(--secondary);">Kanvas Pacar</div>
+            <canvas id="canvas2"></canvas>
         </div>
     </div>
 
-    <!-- SCRIPT 1: Firebase Libraries -->
+    <div class="toolbar">
+        <div class="tool-group">
+            <input type="color" id="colorPicker" value="#590d22">
+            <input type="range" id="sizePicker" min="1" max="20" value="3">
+        </div>
+        <div class="tool-group">
+            <button class="btn-tool active" id="btnDraw" onclick="setTool('draw')">✏️</button>
+            <button class="btn-tool" id="btnErase" onclick="setTool('erase')">🧽</button>
+            <button class="btn-action" onclick="clearMyCanvas()">Hapus</button>
+        </div>
+    </div>
+
+    <!-- SCRIPT 1: Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <!-- SCRIPT 2: Logika Aplikasi (Real-time Drawing) -->
+    <!-- SCRIPT 2: Logika Aplikasi -->
     <script>
-        // Konfigurasi Firebase Publik (Gratis & Siap Pakai)
+        // 1. Inisialisasi Firebase (Public RTDB Gratisan)
         const firebaseConfig = {
             databaseURL: "https://kanvas-ldr-default-rtdb.asia-southeast1.firebasedatabase.app/"
         };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Mengatur ID Ruangan unik (mengambil dari URL jika ada, jika tidak ada buat baru)
+        // 2. Logika Player 1 vs Player 2 via URL
         let urlParams = new URLSearchParams(window.location.search);
         let roomId = urlParams.get('room');
+        let playerParam = urlParams.get('p');
         
-        if (!roomId) {
-            roomId = Math.random().toString(36).substring(2, 9);
-            window.history.pushState({}, '', '?room=' + roomId);
+        // Jika tidak ada room, buat room baru. Host adalah Player 1.
+        if (!roomId || !playerParam) {
+            roomId = roomId || Math.random().toString(36).substring(2, 9);
+            playerParam = '1';
+            window.history.replaceState({}, '', `?room=${roomId}&p=1`);
         }
 
-        const roomRef = database.ref('rooms/' + roomId);
-        document.getElementById('status-text').innerText = "Kamu ada di ruang gambar. Bagikan link ke pacarmu!";
+        const myPlayerId = parseInt(playerParam); // 1 atau 2
+        const roomRef = db.ref(`rooms/${roomId}`);
+        const drawRef = roomRef.child('drawings');
+        const challengeRef = roomRef.child('challenge');
 
-        // Setup Kanvas
-        const canvas = document.getElementById('paintCanvas');
-        const ctx = canvas.getContext('2d');
-        const colorPicker = document.getElementById('colorPicker');
-        const lineWidthInput = document.getElementById('lineWidth');
-        const clearBtn = document.getElementById('clearBtn');
+        // Setup DOM
+        const canvas1 = document.getElementById('canvas1');
+        const canvas2 = document.getElementById('canvas2');
+        const ctx1 = canvas1.getContext('2d');
+        const ctx2 = canvas2.getContext('2d');
 
+        // Sesuaikan Kanvas yang bisa disentuh (Player 1 cuma bisa sentuh Canvas 1)
+        let myCanvas, myCtx;
+        if (myPlayerId === 1) {
+            myCanvas = canvas1; myCtx = ctx1;
+            document.getElementById('canvas2').classList.add('disabled-canvas');
+            document.getElementById('label1').innerText = "Kanvas Kamu (P1)";
+            document.getElementById('label2').innerText = "Kanvas Doi (P2)";
+        } else {
+            myCanvas = canvas2; myCtx = ctx2;
+            document.getElementById('canvas1').classList.add('disabled-canvas');
+            document.getElementById('label2').innerText = "Kanvas Kamu (P2)";
+            document.getElementById('label1').innerText = "Kanvas Doi (P1)";
+            // Sembunyikan tombol share buat Player 2 biar ga bingung
+            document.getElementById('shareBtn').style.display = 'none';
+        }
+
+        // Resolusi Kanvas Real
         function resizeCanvas() {
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
+            [canvas1, canvas2].forEach(c => {
+                const rect = c.parentElement.getBoundingClientRect();
+                c.width = rect.width - 20; // padding fix
+                c.height = rect.height - 20;
+            });
         }
         window.addEventListener('load', resizeCanvas);
         window.addEventListener('resize', resizeCanvas);
 
-        let painting = false;
-
-        // Fungsi mengirim data coretan ke Firebase
-        function sendDrawData(x, y, isDrawing) {
-            roomRef.push({
-                x: x,
-                y: y,
-                color: colorPicker.value,
-                size: lineWidthInput.value,
-                isDrawing: isDrawing,
-                time: firebase.database.ServerValue.TIMESTAMP
-            });
-        }
-
-        function getCoords(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
-
-        // Event saat mulai mencoret
-        function startPosition(e) {
-            painting = true;
-            const coords = getCoords(e);
-            sendDrawData(coords.x, coords.y, false); // false = mulai garis baru
-        }
-
-        function finishedPosition() {
-            painting = false;
-        }
-
-        function draw(e) {
-            if (!painting) return;
-            const coords = getCoords(e);
-            sendDrawData(coords.x, coords.y, true); // true = sedang menarik garis
-        }
-
-        // Listener Event (HP & Laptop)
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
-        canvas.addEventListener('touchend', finishedPosition);
-        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
-
-        canvas.addEventListener('mousedown', startPosition);
-        canvas.addEventListener('mouseup', finishedPosition);
-        canvas.addEventListener('mousemove', draw);
-
-        // Menerima coretan dari Firebase secara real-time
-        let lastX = null;
-        let lastY = null;
-
-        roomRef.limitToLast(100).on('child_added', (snapshot) => {
-            const data = snapshot.val();
-            if (data === "clear") {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                lastX = null;
-                lastY = null;
-                return;
-            }
-
-            ctx.lineWidth = data.size;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = data.color;
-
-            if (data.isDrawing && lastX !== null && lastY !== null) {
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(data.x, data.y);
-                ctx.stroke();
-            }
-
-            lastX = data.x;
-            lastY = data.y;
-        });
-
-        // Tombol Hapus
-        clearBtn.addEventListener('click', () => {
-            roomRef.set({ "clear": "clear" });
-        });
-
-        // Tombol Bagikan Link
-        document.getElementById('shareBtn').addEventListener('click', () => {
-            const currentUrl = window.location.href;
-            navigator.clipboard.writeText(currentUrl).then(() => {
-                alert("Link berhasil disalin! Tinggal kamu paste/kirim ke WA pacarmu ya.");
-            }).catch(err => {
-                alert("Gagal menyalin otomatis. Silakan salin URL browser kamu manual dan kirim ke pacar.");
-            });
-        });
-    </script>
-
-</body>
-</html>
+        // 3. Sistem Tools (Brush & Eraser)
+        let currentTool = 'draw';
+        function setTool(tool) {
+            currentTool = tool;
+            document.getElementById('btnDraw').classList.remove('active');
+Normally I can help with things like this, but I don't seem to have access to that content. You can try again or ask me for something else.
