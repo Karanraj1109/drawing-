@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Couple Art Challenge ❤️</title>
     <style>
-        /* ========================================================
-           1. MODERN UI / CSS STYLING
-           ======================================================== */
+        /* ==========================================
+           1. TAMPILAN UI (Estetik & Modern)
+           ========================================== */
         :root {
             --primary: #ff4d6d;
             --secondary: #ff8fa3;
@@ -17,7 +17,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
@@ -26,70 +26,76 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            overflow-x: hidden;
+            /* Mencegah layar ke-scroll saat nggambar */
+            overflow: hidden; 
+            touch-action: none; 
         }
 
-        /* Header & Challenge Area */
+        /* Bagian Atas (Tantangan & Tombol Share) */
         .header {
-            text-align: center;
             width: 100%;
-            max-width: 600px;
+            max-width: 500px;
             background: var(--surface);
             padding: 15px;
             border-radius: 20px;
-            box-shadow: 0 8px 20px rgba(255, 77, 109, 0.1);
+            box-shadow: 0 5px 15px rgba(255, 77, 109, 0.1);
+            text-align: center;
             margin-bottom: 15px;
-            position: relative;
         }
 
-        .header h1 {
-            margin: 0 0 10px 0;
-            font-size: 18px;
-            color: var(--primary);
-        }
+        .header h1 { margin: 0 0 10px 0; font-size: 18px; color: var(--primary); }
 
         .challenge-box {
             background: var(--bg);
             border: 2px dashed var(--secondary);
-            border-radius: 12px;
-            padding: 10px;
+            border-radius: 10px;
+            padding: 8px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .btn-challenge {
+        .btn-sm {
             background: var(--primary);
             color: white;
             border: none;
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 11px;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(255, 77, 109, 0.3);
-            transition: 0.2s;
         }
 
-        .btn-challenge:active { transform: scale(0.95); }
+        .btn-share {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 8px;
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
-        /* Canvas Wrapper - Dua Canvas */
+        /* Container 2 Kanvas */
         .canvas-container {
             width: 100%;
-            max-width: 600px;
+            max-width: 500px;
             display: flex;
             flex-direction: column;
             gap: 15px;
-            margin-bottom: 90px; /* Space for toolbar */
+            flex: 1;
         }
 
         .canvas-box {
-            background: var(--surface);
-            border-radius: 15px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-            padding: 10px;
             position: relative;
+            background: white;
+            border-radius: 15px;
+            padding: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            height: 32vh; /* Membagi layar jadi 2 kanvas */
         }
 
         .canvas-label {
@@ -99,61 +105,45 @@
             background: var(--primary);
             color: white;
             padding: 4px 12px;
-            border-radius: 20px;
+            border-radius: 15px;
             font-size: 11px;
             font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 10;
+            z-index: 5;
         }
 
         canvas {
             width: 100%;
-            height: 30vh; /* Ideal untuk 2 canvas di layar HP */
-            background-color: #fcfcfc;
-            border: 2px solid #f0f0f0;
+            height: 100%;
+            background-color: #fdfdfd;
+            border: 2px solid #ffccd5;
             border-radius: 10px;
-            touch-action: none; /* Cegah layar scroll saat nggambar */
             cursor: crosshair;
+            display: block;
         }
 
-        /* Toolbar / Alat Gambar di Bawah */
+        /* Kanvas orang lain dibikin agak redup dan gabisa dipencet */
+        .disabled-canvas { opacity: 0.8; pointer-events: none; }
+
+        /* Toolbar Alat Gambar di Bawah */
         .toolbar {
             position: fixed;
-            bottom: 15px;
-            width: 90%;
-            max-width: 600px;
+            bottom: 10px;
+            width: 95%;
+            max-width: 500px;
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 12px;
-            border-radius: 25px;
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.1);
+            padding: 10px;
+            border-radius: 20px;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-around;
             align-items: center;
-            flex-wrap: wrap;
-            z-index: 100;
-            gap: 10px;
+            z-index: 10;
         }
 
-        .tool-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .tool-group { display: flex; align-items: center; gap: 8px; }
 
-        input[type="color"] {
-            width: 35px;
-            height: 35px;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            background: none;
-        }
-
-        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
-
-        input[type="range"] { width: 80px; }
+        input[type="color"] { width: 35px; height: 35px; border: none; background: none; }
+        input[type="range"] { width: 70px; }
 
         .btn-tool {
             background: #eee;
@@ -162,127 +152,220 @@
             border-radius: 10px;
             font-size: 16px;
             cursor: pointer;
-            transition: 0.2s;
         }
         .btn-tool.active { background: var(--primary); color: white; }
-        .btn-action {
-            background: var(--text);
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .btn-share { background: #4caf50; }
-
-        /* Disable touch visual for the other person's canvas */
-        .disabled-canvas { opacity: 0.8; pointer-events: none; }
     </style>
 </head>
 <body>
 
+    <!-- Area Atas -->
     <div class="header">
         <h1>🎨 Couple Art Challenge</h1>
         <div class="challenge-box">
             <span id="challengeText">Tantangan: 🍎 Gambar Apel!</span>
-            <button class="btn-challenge" onclick="generateChallenge()">Ganti Ide</button>
+            <button class="btn-sm" onclick="randomChallenge()">Ganti Ide</button>
         </div>
-        <button class="btn-action btn-share" id="shareBtn" style="margin-top:10px; width:100%;">Salin Link Ajakan buat Pacar 💌</button>
+        <button class="btn-share" id="shareBtn">💌 Salin Link Buat Pacar</button>
     </div>
 
+    <!-- Area Kanvas -->
     <div class="canvas-container">
-        <!-- Canvas 1 (Pemain 1) -->
         <div class="canvas-box" id="box1">
-            <div class="canvas-label" id="label1">Kanvas Kamu</div>
+            <div class="canvas-label" id="label1">Kanvas P1</div>
             <canvas id="canvas1"></canvas>
         </div>
-        
-        <!-- Canvas 2 (Pemain 2) -->
         <div class="canvas-box" id="box2">
-            <div class="canvas-label" id="label2" style="background:var(--secondary);">Kanvas Pacar</div>
+            <div class="canvas-label" id="label2" style="background:var(--secondary);">Kanvas P2</div>
             <canvas id="canvas2"></canvas>
         </div>
     </div>
 
+    <!-- Area Alat Gambar -->
     <div class="toolbar">
         <div class="tool-group">
-            <input type="color" id="colorPicker" value="#590d22">
-            <input type="range" id="sizePicker" min="1" max="20" value="3">
+            <input type="color" id="colorPicker" value="#ff4d6d">
+            <input type="range" id="sizePicker" min="1" max="20" value="4">
         </div>
         <div class="tool-group">
             <button class="btn-tool active" id="btnDraw" onclick="setTool('draw')">✏️</button>
             <button class="btn-tool" id="btnErase" onclick="setTool('erase')">🧽</button>
-            <button class="btn-action" onclick="clearMyCanvas()">Hapus</button>
+            <button class="btn-tool" onclick="clearMyCanvas()">🗑️</button>
         </div>
     </div>
 
-    <!-- SCRIPT 1: Firebase -->
+    <!-- ==========================================
+         2. LOGIKA JAVASCRIPT & FIREBASE
+         ========================================== -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <!-- SCRIPT 2: Logika Aplikasi -->
     <script>
-        // 1. Inisialisasi Firebase (Public RTDB Gratisan)
+        // 1. Inisialisasi Database Gratis Firebase
         const firebaseConfig = {
             databaseURL: "https://kanvas-ldr-default-rtdb.asia-southeast1.firebasedatabase.app/"
         };
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // 2. Logika Player 1 vs Player 2 via URL
+        // 2. Setup ID Room & Identifikasi Siapa yang Buka
         let urlParams = new URLSearchParams(window.location.search);
         let roomId = urlParams.get('room');
-        let playerParam = urlParams.get('p');
+        let playerNum = urlParams.get('p'); // p=1 (Kamu), p=2 (Pacar)
         
-        // Jika tidak ada room, buat room baru. Host adalah Player 1.
-        if (!roomId || !playerParam) {
-            roomId = roomId || Math.random().toString(36).substring(2, 9);
-            playerParam = '1';
+        // Kalau URL kosong, berarti kamu yang bikin room (Player 1)
+        if (!roomId || !playerNum) {
+            roomId = Math.random().toString(36).substring(2, 8);
+            playerNum = '1';
             window.history.replaceState({}, '', `?room=${roomId}&p=1`);
         }
 
-        const myPlayerId = parseInt(playerParam); // 1 atau 2
-        const roomRef = db.ref(`rooms/${roomId}`);
-        const drawRef = roomRef.child('drawings');
-        const challengeRef = roomRef.child('challenge');
+        const myPlayerId = parseInt(playerNum);
+        const drawRef = db.ref(`rooms/${roomId}/drawings`);
+        const challengeRef = db.ref(`rooms/${roomId}/challenge`);
 
-        // Setup DOM
+        // 3. Setup Kanvas Masing-masing
         const canvas1 = document.getElementById('canvas1');
         const canvas2 = document.getElementById('canvas2');
         const ctx1 = canvas1.getContext('2d');
         const ctx2 = canvas2.getContext('2d');
 
-        // Sesuaikan Kanvas yang bisa disentuh (Player 1 cuma bisa sentuh Canvas 1)
         let myCanvas, myCtx;
+        
+        // Atur agar Player cuma bisa nyoret kanvasnya sendiri
         if (myPlayerId === 1) {
             myCanvas = canvas1; myCtx = ctx1;
-            document.getElementById('canvas2').classList.add('disabled-canvas');
-            document.getElementById('label1').innerText = "Kanvas Kamu (P1)";
-            document.getElementById('label2').innerText = "Kanvas Doi (P2)";
+            document.getElementById('box2').classList.add('disabled-canvas');
+            document.getElementById('label1').innerText = "Kanvas Kamu";
+            document.getElementById('label2').innerText = "Kanvas Pacar";
         } else {
             myCanvas = canvas2; myCtx = ctx2;
-            document.getElementById('canvas1').classList.add('disabled-canvas');
-            document.getElementById('label2').innerText = "Kanvas Kamu (P2)";
-            document.getElementById('label1').innerText = "Kanvas Doi (P1)";
-            // Sembunyikan tombol share buat Player 2 biar ga bingung
-            document.getElementById('shareBtn').style.display = 'none';
+            document.getElementById('box1').classList.add('disabled-canvas');
+            document.getElementById('label2').innerText = "Kanvas Kamu";
+            document.getElementById('label1').innerText = "Kanvas Pacar";
+            document.getElementById('shareBtn').style.display = 'none'; // Sembunyikan tombol share di HP pacar
         }
 
-        // Resolusi Kanvas Real
-        function resizeCanvas() {
+        // Fix resolusi kanvas biar kursor nggak lari
+        function fixCanvasSize() {
             [canvas1, canvas2].forEach(c => {
                 const rect = c.parentElement.getBoundingClientRect();
-                c.width = rect.width - 20; // padding fix
-                c.height = rect.height - 20;
+                c.width = rect.width - 10;
+                c.height = rect.height - 10;
             });
         }
-        window.addEventListener('load', resizeCanvas);
-        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', fixCanvasSize);
+        setTimeout(fixCanvasSize, 500); // Ekstra fix untuk HP
 
-        // 3. Sistem Tools (Brush & Eraser)
+        // 4. Sistem Alat Gambar (Kuas & Penghapus)
         let currentTool = 'draw';
         function setTool(tool) {
             currentTool = tool;
-            document.getElementById('btnDraw').classList.remove('active');
-Normally I can help with things like this, but I don't seem to have access to that content. You can try again or ask me for something else.
+            document.getElementById('btnDraw').classList.toggle('active', tool === 'draw');
+            document.getElementById('btnErase').classList.toggle('active', tool === 'erase');
+        }
+
+        const colorPicker = document.getElementById('colorPicker');
+        const sizePicker = document.getElementById('sizePicker');
+
+        // 5. Logika Menggambar
+        let painting = false;
+
+        function getMousePos(e) {
+            const rect = myCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function sendDraw(x, y, isDrawing) {
+            const color = currentTool === 'erase' ? '#fdfdfd' : colorPicker.value; // Kalau penghapus, pakai warna background
+            drawRef.child(`p${myPlayerId}`).push({ x, y, c: color, s: sizePicker.value, d: isDrawing });
+        }
+
+        function startPosition(e) {
+            painting = true;
+            const pos = getMousePos(e);
+            sendDraw(pos.x, pos.y, false);
+        }
+
+        function finishedPosition() { painting = false; }
+
+        function draw(e) {
+            if (!painting) return;
+            const pos = getMousePos(e);
+            sendDraw(pos.x, pos.y, true);
+        }
+
+        // Listener untuk HP (Touch) & PC (Mouse)
+        myCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
+        myCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+        myCanvas.addEventListener('touchend', finishedPosition);
+        
+        myCanvas.addEventListener('mousedown', startPosition);
+        myCanvas.addEventListener('mousemove', draw);
+        myCanvas.addEventListener('mouseup', finishedPosition);
+        myCanvas.addEventListener('mouseleave', finishedPosition);
+
+        // 6. Menerima Gambar dari Firebase (Real-time untuk P1 & P2)
+        function listenToCanvas(playerId, ctx, canvasEl) {
+            let lastX = null, lastY = null;
+            
+            drawRef.child(`p${playerId}`).limitToLast(500).on('child_added', snap => {
+                const data = snap.val();
+                
+                if (data.clear) {
+                    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+                    lastX = null; lastY = null; return;
+                }
+
+                ctx.lineWidth = data.s;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = data.c;
+
+                if (data.d && lastX !== null && lastY !== null) {
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(data.x, data.y);
+                    ctx.stroke();
+                }
+                lastX = data.x;
+                lastY = data.y;
+            });
+        }
+        listenToCanvas(1, ctx1, canvas1);
+        listenToCanvas(2, ctx2, canvas2);
+
+        // Hapus Kanvas Sendiri
+        window.clearMyCanvas = () => {
+            drawRef.child(`p${myPlayerId}`).push({ clear: true });
+        }
+
+        // 7. Sistem Tantangan (Challenge) Sinkron Berdua
+        const challenges = ["🍎 Gambar Apel!", "🐱 Gambar Kucing Lucu", "🏠 Rumah Idaman Kita", "🍕 Makanan Kesukaanmu", "❤️ Gambar Hati Estetik", "👽 Alien Nyasar", "🚗 Mobil Impian"];
+        
+        window.randomChallenge = () => {
+            const randomText = challenges[Math.floor(Math.random() * challenges.length)];
+            challengeRef.set(randomText);
+        }
+
+        challengeRef.on('value', snap => {
+            if (snap.val()) document.getElementById('challengeText').innerText = "Tantangan: " + snap.val();
+        });
+
+        // 8. Tombol Salin Link Khusus buat Pacar (Otomatis jadi P2)
+        document.getElementById('shareBtn').addEventListener('click', () => {
+            const baseURL = window.location.href.split('?')[0];
+            const linkBuatPacar = `${baseURL}?room=${roomId}&p=2`;
+            
+            navigator.clipboard.writeText(linkBuatPacar).then(() => {
+                alert("Link buat pacar berhasil disalin! Silakan paste & kirim di WhatsApp.\n\nNanti dia otomatis ngisi kanvas yang bawah.");
+            }).catch(() => {
+                alert("Gagal menyalin. Salin manual teks ini: " + linkBuatPacar);
+            });
+        });
+    </script>
+</body>
+</html>
