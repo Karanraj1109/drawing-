@@ -184,7 +184,6 @@
             <input type="range" id="sizePicker" min="1" max="20" value="4">
         </div>
         <div class="tool-group">
-            <!-- Menambahkan tombol Undo, Redo, dan Download sesuai struktur asli tanpa mengubah tampilan CSS -->
             <button class="btn-tool active" id="btnDraw" onclick="setTool('draw')" title="Pensil">✏️</button>
             <button class="btn-tool" id="btnErase" onclick="setTool('erase')" title="Penghapus">🧽</button>
             <button class="btn-tool" onclick="undo()" title="Undo">↩️</button>
@@ -211,58 +210,90 @@
         }
         const db = firebase.database();
 
-        // 2. Setup ID Room & Identifikasi
-        let urlParams = new URLSearchParams(window.location.search);
+        // 2. Setup ID Room dari URL
+        const urlParams = new URLSearchParams(window.location.search);
         let roomId = urlParams.get('room');
-        let playerNum = urlParams.get('p');
         
-        if (!roomId || !playerNum) {
-            roomId = Math.random().toString(36).substring(2, 8);
-            playerNum = '1';
-            window.history.replaceState({}, '', `?room=${roomId}&p=1`);
+        if (!roomId) {
+            roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            window.history.replaceState({}, '', `?room=${roomId}`);
         }
 
-        const myPlayerId = parseInt(playerNum);
-        const partnerId = myPlayerId === 1 ? 2 : 1;
-        
-        const myDrawRef = db.ref(`rooms/${roomId}/drawings/p${myPlayerId}`);
-        const challengeRef = db.ref(`rooms/${roomId}/challenge`);
+        // 3. Menentukan Role Otomatis (UserA / UserB) dengan Firebase & LocalStorage
+        let myRole = localStorage.getItem(`role_${roomId}`);
+        let partnerRole = null;
 
-        // 3. Setup Kanvas
-        const canvas1 = document.getElementById('canvas1');
-        const canvas2 = document.getElementById('canvas2');
-        const ctx1 = canvas1.getContext('2d');
-        const ctx2 = canvas2.getContext('2d');
+        db.ref(`rooms/${roomId}/roles`).once('value', (snap) => {
+            const roles = snap.val() || {};
+            if (!myRole) {
+                if (!roles.userA) {
+                    myRole = 'userA';
+                    db.ref(`rooms/${roomId}/roles/userA`).set(true);
+                } else {
+                    myRole = 'userB';
+                    db.ref(`rooms/${roomId}/roles/userB`).set(true);
+                }
+                localStorage.setItem(`role_${roomId}`, myRole);
+            }
+            partnerRole = myRole === 'userA' ? 'userB' : 'userA';
+            
+            // LOG DEBUGGING Sesuai Permintaan
+            console.log("====================================");
+            console.log(`Saya adalah ${myRole}`);
+            console.log(`Pasangan saya adalah ${partnerRole}`);
+            console.log("====================================");
+            
+            initApp();
+        });
 
-        let myCanvas, myCtx;
-        
-        if (myPlayerId === 1) {
-            myCanvas = canvas1; myCtx = ctx1;
+        // 4. Inisialisasi Aplikasi Utama
+        let myCtx, partnerCtx, myCanvas, partnerCanvas;
+        let myDrawRef, partnerDrawRef;
+        let processedIds = new Set();
+        let myActions = [], partnerActions = [];
+        let myUndoneStrokes = new Set(), partnerUndoneStrokes = new Set();
+        let myStrokeHistory = [], myRedoStack = [];
+
+        function initApp() {
+            myCanvas = document.getElementById('canvas1');
+            partnerCanvas = document.getElementById('canvas2');
+            myCtx = myCanvas.getContext('2d');
+            partnerCtx = partnerCanvas.getContext('2d');
+
+            // CANVAS PACAR DIBUAT READ-ONLY!
             document.getElementById('box2').classList.add('disabled-canvas');
-            document.getElementById('label1').innerHTML = `Kanvas Kamu <span id="status1"></span>`;
-            document.getElementById('label2').innerHTML = `Kanvas Pacar <span id="status2"></span>`;
-        } else {
-            myCanvas = canvas2; myCtx = ctx2;
-            document.getElementById('box1').classList.add('disabled-canvas');
-            document.getElementById('label2').innerHTML = `Kanvas Kamu <span id="status2"></span>`;
-            document.getElementById('label1').innerHTML = `Kanvas Pacar <span id="status1"></span>`;
-            document.getElementById('shareBtn').style.display = 'none'; 
+            partnerCanvas.style.pointerEvents = 'none';
+
+            // Ganti Label sesuai posisi
+            document.getElementById('label1').innerHTML = 'Kanvas Kamu <span id="status1"></span>';
+            document.getElementById('label2').innerHTML = 'Kanvas Pacar <span id="status2"></span>';
+
+            // Referensi Database Terpisah
+            myDrawRef = db.ref(`rooms/${roomId}/${myRole}/strokes`);
+            partnerDrawRef = db.ref(`rooms/${roomId}/${partnerRole}/strokes`);
+
+            setupCanvasSizing();
+            setupTools();
+            setupFirebaseListeners();
+            setupDrawingEngine();
+            setupPresence();
         }
 
-        function fixCanvasSize() {
-            [canvas1, canvas2].forEach(c => {
-                const rect = c.parentElement.getBoundingClientRect();
-                c.width = rect.width - 10;
-                c.height = rect.height - 10;
-            });
-            // Redraw setelah resize (agar gambar tidak hilang)
-            redrawCanvas(1, ctx1, canvas1);
-            redrawCanvas(2, ctx2, canvas2);
+        function setupCanvasSizing() {
+            function fixCanvasSize() {
+                [myCanvas, partnerCanvas].forEach(c => {
+                    const rect = c.parentElement.getBoundingClientRect();
+                    c.width = rect.width - 10;
+                    c.height = rect.height - 10;
+                });
+                redrawCanvas(myActions, myUndoneStrokes, myCtx, myCanvas);
+                redrawCanvas(partnerActions, partnerUndoneStrokes, partnerCtx, partnerCanvas);
+            }
+            window.addEventListener('resize', fixCanvasSize);
+            setTimeout(fixCanvasSize, 100);
         }
-        window.addEventListener('load', fixCanvasSize);
-        setTimeout(fixCanvasSize, 500); 
 
-        // 4. State & Tools
+        // 5. Setup Tools (Draw, Erase)
         let currentTool = 'draw';
         window.setTool = function(tool) {
             currentTool = tool;
@@ -271,21 +302,9 @@
         }
         const colorPicker = document.getElementById('colorPicker');
         const sizePicker = document.getElementById('sizePicker');
-
-        // Generator ID Unik
         const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-        // DATA STORE UNTUK SINKRONISASI & UNDO/REDO
-        let processedIds = new Set();
-        let actions = { 1: [], 2: [] }; 
-        let undoneStrokes = { 1: new Set(), 2: new Set() };
-        
-        // Local history stack for Undo/Redo tracking
-        let myStrokeHistory = []; 
-        let myRedoStack = [];     
-
-        // 5. Fungsi Render Lokal
-        function drawLocal(action, ctx) {
+        function drawLocalStroke(action, ctx) {
             ctx.lineWidth = action.size;
             ctx.lineCap = 'round';
             ctx.strokeStyle = action.type === 'erase' ? '#fdfdfd' : action.color;
@@ -295,21 +314,19 @@
             ctx.stroke();
         }
 
-        // Fungsi Redraw Total (dipakai untuk Undo/Redo & Load History)
-        function redrawCanvas(playerId, ctx, canvas) {
+        function redrawCanvas(actionList, undoneSet, ctx, canvas) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            actions[playerId].forEach(action => {
-                if (undoneStrokes[playerId].has(action.strokeId)) return;
-
+            actionList.forEach(action => {
+                if (undoneSet.has(action.strokeId)) return;
                 if (action.type === 'clear') {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                 } else if (action.type === 'draw' || action.type === 'erase') {
-                    drawLocal(action, ctx);
+                    drawLocalStroke(action, ctx);
                 }
             });
         }
 
-        // 6. Sistem Menggambar Berbasis Loop (Optimasi RequestAnimationFrame)
+        // 6. ENGINE MENGGAMBAR (MENCEGAH SPAM REQUEST)
         let isDrawing = false;
         let lastPos = null;
         let currentPos = null;
@@ -322,117 +339,130 @@
             return { x: clientX - rect.left, y: clientY - rect.top };
         }
 
-        function setMyPresenceTyping(typing) {
-            db.ref(`rooms/${roomId}/presence/p${myPlayerId}/typing`).set(typing);
+        function setTyping(status) {
+            db.ref(`rooms/${roomId}/presence/${myRole}/typing`).set(status);
         }
 
-        function startPosition(e) {
-            isDrawing = true;
-            currentStrokeId = generateId();
-            myStrokeHistory.push(currentStrokeId);
-            myRedoStack = []; // Hapus redo stack jika mulai gambar baru
+        function setupDrawingEngine() {
+            myCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
+            myCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); updatePosition(e); });
+            myCanvas.addEventListener('touchend', finishedPosition);
             
-            lastPos = getMousePos(e);
-            currentPos = { ...lastPos };
-            setMyPresenceTyping(true);
-        }
+            myCanvas.addEventListener('mousedown', startPosition);
+            myCanvas.addEventListener('mousemove', updatePosition);
+            myCanvas.addEventListener('mouseup', finishedPosition);
+            myCanvas.addEventListener('mouseleave', finishedPosition);
 
-        function updatePosition(e) {
-            if (isDrawing) currentPos = getMousePos(e);
-        }
-
-        function finishedPosition() {
-            if (isDrawing) {
-                isDrawing = false;
-                setMyPresenceTyping(false);
+            function startPosition(e) {
+                isDrawing = true;
+                currentStrokeId = generateId();
+                myStrokeHistory.push(currentStrokeId);
+                myRedoStack = [];
+                lastPos = getMousePos(e);
+                currentPos = { ...lastPos };
+                setTyping(true);
             }
-        }
 
-        // Engine Loop (60 FPS) mencegah spam server Firebase
-        function drawEngine() {
-            if (isDrawing && currentPos && lastPos) {
-                if (currentPos.x !== lastPos.x || currentPos.y !== lastPos.y) {
-                    const action = {
-                        type: currentTool,
-                        x: parseFloat(currentPos.x.toFixed(2)), // Hemat byte data
-                        y: parseFloat(currentPos.y.toFixed(2)),
-                        prevX: parseFloat(lastPos.x.toFixed(2)),
-                        prevY: parseFloat(lastPos.y.toFixed(2)),
-                        color: currentTool === 'erase' ? '#fdfdfd' : colorPicker.value,
-                        size: sizePicker.value,
-                        strokeId: currentStrokeId,
-                        id: generateId()
-                    };
+            function updatePosition(e) {
+                if (isDrawing) currentPos = getMousePos(e);
+            }
 
-                    // Optimasi: Tampilkan di layar sendiri seketika
-                    drawLocal(action, myCtx);
-                    
-                    processedIds.add(action.id);
-                    actions[myPlayerId].push(action);
-
-                    // Kirim ke server
-                    myDrawRef.push(action);
-                    
-                    lastPos = { ...currentPos };
+            function finishedPosition() {
+                if (isDrawing) {
+                    isDrawing = false;
+                    setTyping(false);
                 }
+            }
+
+            // Engine loop 60fps
+            function drawEngine() {
+                if (isDrawing && currentPos && lastPos) {
+                    if (currentPos.x !== lastPos.x || currentPos.y !== lastPos.y) {
+                        const action = {
+                            type: currentTool,
+                            x: parseFloat(currentPos.x.toFixed(2)), // Optimasi beban database
+                            y: parseFloat(currentPos.y.toFixed(2)),
+                            prevX: parseFloat(lastPos.x.toFixed(2)),
+                            prevY: parseFloat(lastPos.y.toFixed(2)),
+                            color: currentTool === 'erase' ? '#fdfdfd' : colorPicker.value,
+                            size: sizePicker.value,
+                            strokeId: currentStrokeId,
+                            id: generateId()
+                        };
+
+                        // Tampilkan di canvas sendiri langsung (tanpa nunggu server)
+                        drawLocalStroke(action, myCtx);
+
+                        // Tandai action ini supaya tidak tergambar dua kali saat balik dari Firebase (Anti-Loop)
+                        processedIds.add(action.id);
+                        myActions.push(action);
+
+                        console.log("Mengirim stroke...");
+                        myDrawRef.push(action); // HANYA upload ke node milik saya sendiri
+                        
+                        lastPos = { ...currentPos };
+                    }
+                }
+                requestAnimationFrame(drawEngine);
             }
             requestAnimationFrame(drawEngine);
         }
-        requestAnimationFrame(drawEngine); // Mulai engine
 
-        // Listener Event
-        myCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
-        myCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); updatePosition(e); });
-        myCanvas.addEventListener('touchend', finishedPosition);
-        
-        myCanvas.addEventListener('mousedown', startPosition);
-        myCanvas.addEventListener('mousemove', updatePosition);
-        myCanvas.addEventListener('mouseup', finishedPosition);
-        myCanvas.addEventListener('mouseleave', finishedPosition);
+        // 7. FIREBASE LISTENERS (MEMUAT HISTORY SAAT MASUK & SINKRONISASI REALTIME)
+        function processIncomingAction(action, actionList, undoneSet, ctx, canvas) {
+            if (action.type === 'undo') {
+                undoneSet.add(action.strokeId);
+                redrawCanvas(actionList, undoneSet, ctx, canvas);
+            } else if (action.type === 'redo') {
+                undoneSet.delete(action.strokeId);
+                redrawCanvas(actionList, undoneSet, ctx, canvas);
+            } else if (action.type === 'clear') {
+                redrawCanvas(actionList, undoneSet, ctx, canvas);
+            } else {
+                if (!undoneSet.has(action.strokeId)) drawLocalStroke(action, ctx);
+            }
+        }
 
-        // 7. Menerima Data Real-time & History dari Firebase (Mencegah Loop)
-        function listenToPlayer(playerId, ctx, canvas) {
-            db.ref(`rooms/${roomId}/drawings/p${playerId}`).on('child_added', snap => {
+        function setupFirebaseListeners() {
+            // Menerima histori gambar SENDIRI jika halaman di refresh
+            myDrawRef.on('child_added', snap => {
                 const action = snap.val();
-                
-                // Mencegah infinite loop: jika ID belum pernah diproses (dari pacar atau reload history)
                 if (!processedIds.has(action.id)) {
                     processedIds.add(action.id);
-                    actions[playerId].push(action);
-
-                    if (action.type === 'undo') {
-                        undoneStrokes[playerId].add(action.strokeId);
-                        redrawCanvas(playerId, ctx, canvas);
-                    } else if (action.type === 'redo') {
-                        undoneStrokes[playerId].delete(action.strokeId);
-                        redrawCanvas(playerId, ctx, canvas);
-                    } else if (action.type === 'clear') {
-                        redrawCanvas(playerId, ctx, canvas);
-                    } else {
-                        // Jangan gambar jika garis sudah dibatalkan (undo)
-                        if (!undoneStrokes[playerId].has(action.strokeId)) {
-                            drawLocal(action, ctx);
-                        }
-                    }
+                    myActions.push(action);
+                    processIncomingAction(action, myActions, myUndoneStrokes, myCtx, myCanvas);
                 }
             });
-        }
-        listenToPlayer(1, ctx1, canvas1);
-        listenToPlayer(2, ctx2, canvas2);
 
-        // 8. Fitur Undo, Redo & Clear
+            // Menerima coretan PASANGAN (Langsung ditaruh di Canvas Pacar)
+            partnerDrawRef.on('child_added', snap => {
+                const action = snap.val();
+                if (!processedIds.has(action.id)) {
+                    console.log("Menerima stroke pasangan...");
+                    processedIds.add(action.id);
+                    partnerActions.push(action);
+                    processIncomingAction(action, partnerActions, partnerUndoneStrokes, partnerCtx, partnerCanvas);
+                }
+            });
+
+            // Sistem Tantangan Sinkron
+            const challengeRef = db.ref(`rooms/${roomId}/challenge`);
+            const challenges = ["🍎 Gambar Apel!", "🐱 Gambar Kucing", "🏠 Rumah Idaman", "🍕 Makanan Kesukaan", "❤️ Gambar Hati", "👽 Alien Nyasar", "🚗 Mobil Impian"];
+            window.randomChallenge = () => challengeRef.set(challenges[Math.floor(Math.random() * challenges.length)]);
+            challengeRef.on('value', snap => { if (snap.val()) document.getElementById('challengeText').innerText = "Tantangan: " + snap.val(); });
+        }
+
+        // 8. FITUR MENGHAPUS & UNDO/REDO (HANYA BERLAKU DI KANVAS SENDIRI)
         window.undo = () => {
             if (myStrokeHistory.length > 0) {
                 const strokeId = myStrokeHistory.pop();
                 myRedoStack.push(strokeId);
-                
                 const action = { type: 'undo', strokeId: strokeId, id: generateId() };
                 processedIds.add(action.id);
-                actions[myPlayerId].push(action);
+                myActions.push(action);
                 myDrawRef.push(action);
-                
-                undoneStrokes[myPlayerId].add(strokeId);
-                redrawCanvas(myPlayerId, myCtx, myCanvas);
+                myUndoneStrokes.add(strokeId);
+                redrawCanvas(myActions, myUndoneStrokes, myCtx, myCanvas);
             }
         };
 
@@ -440,14 +470,12 @@
             if (myRedoStack.length > 0) {
                 const strokeId = myRedoStack.pop();
                 myStrokeHistory.push(strokeId);
-                
                 const action = { type: 'redo', strokeId: strokeId, id: generateId() };
                 processedIds.add(action.id);
-                actions[myPlayerId].push(action);
+                myActions.push(action);
                 myDrawRef.push(action);
-                
-                undoneStrokes[myPlayerId].delete(strokeId);
-                redrawCanvas(myPlayerId, myCtx, myCanvas);
+                myUndoneStrokes.delete(strokeId);
+                redrawCanvas(myActions, myUndoneStrokes, myCtx, myCanvas);
             }
         };
 
@@ -455,61 +483,56 @@
             const strokeId = 'clear_' + generateId();
             myStrokeHistory.push(strokeId);
             myRedoStack = [];
-            
             const action = { type: 'clear', strokeId: strokeId, id: generateId() };
             processedIds.add(action.id);
-            actions[myPlayerId].push(action);
+            myActions.push(action);
             myDrawRef.push(action);
-            
-            redrawCanvas(myPlayerId, myCtx, myCanvas);
+            redrawCanvas(myActions, myUndoneStrokes, myCtx, myCanvas);
         };
 
-        // 9. Sistem Kehadiran (Online & Typing Status)
-        const myPresenceRef = db.ref(`rooms/${roomId}/presence/p${myPlayerId}`);
-        myPresenceRef.onDisconnect().set({ online: false, typing: false });
-        myPresenceRef.set({ online: true, typing: false });
+        // 9. STATUS ONLINE & MENGETIK
+        function setupPresence() {
+            const myPresenceRef = db.ref(`rooms/${roomId}/presence/${myRole}`);
+            const partnerPresenceRef = db.ref(`rooms/${roomId}/presence/${partnerRole}`);
 
-        // Update indikator UI sendiri
-        document.getElementById(`status${myPlayerId}`).innerText = "(🟢 Online)";
-        document.getElementById(`status${myPlayerId}`).style.color = "#4caf50";
+            myPresenceRef.onDisconnect().set({ online: false, typing: false });
+            myPresenceRef.set({ online: true, typing: false });
 
-        // Pantau status pacar
-        db.ref(`rooms/${roomId}/presence/p${partnerId}`).on('value', snap => {
-            const data = snap.val();
-            const statusEl = document.getElementById(`status${partnerId}`);
-            if (!statusEl) return;
-            
-            if (data && data.online) {
-                if (data.typing) {
-                    statusEl.innerText = "❤️ Sedang menggambar...";
-                    statusEl.style.color = "#ff4d6d";
-                    statusEl.style.fontWeight = "bold";
+            // UI Status Sendiri
+            const myStatus = document.getElementById('status1');
+            myStatus.innerText = "(🟢 Online)";
+            myStatus.style.color = "#4caf50";
+
+            // Pantau Status Pasangan
+            partnerPresenceRef.on('value', snap => {
+                const data = snap.val();
+                const partnerStatus = document.getElementById('status2');
+                if (data && data.online) {
+                    if (data.typing) {
+                        partnerStatus.innerText = "❤️ Pacar sedang menggambar...";
+                        partnerStatus.style.color = "#ff4d6d";
+                        partnerStatus.style.fontWeight = "bold";
+                    } else {
+                        partnerStatus.innerText = "🟢 Pacar Online";
+                        partnerStatus.style.color = "#4caf50";
+                        partnerStatus.style.fontWeight = "normal";
+                    }
                 } else {
-                    statusEl.innerText = "🟢 Online";
-                    statusEl.style.color = "#4caf50";
-                    statusEl.style.fontWeight = "normal";
+                    partnerStatus.innerText = "⚪ Menunggu pasangan...";
+                    partnerStatus.style.color = "#888";
+                    partnerStatus.style.fontWeight = "normal";
                 }
-            } else {
-                statusEl.innerText = "⚪ Menunggu...";
-                statusEl.style.color = "#888";
-                statusEl.style.fontWeight = "normal";
-            }
-        });
+            });
+        }
 
-        // 10. Sistem Tantangan
-        const challenges = ["🍎 Gambar Apel!", "🐱 Gambar Kucing", "🏠 Rumah Idaman", "🍕 Makanan Kesukaan", "❤️ Gambar Hati", "👽 Alien Nyasar", "🚗 Mobil Impian"];
-        window.randomChallenge = () => challengeRef.set(challenges[Math.floor(Math.random() * challenges.length)]);
-        challengeRef.on('value', snap => { if (snap.val()) document.getElementById('challengeText').innerText = "Tantangan: " + snap.val(); });
-
-        // 11. Salin Link Sempurna
+        // 10. FITUR SHARE & DOWNLOAD
         document.getElementById('shareBtn').addEventListener('click', () => {
-            const linkBuatPacar = `${window.location.href.split('?')[0]}?room=${roomId}&p=2`;
+            const linkBuatPacar = `${window.location.href.split('?')[0]}?room=${roomId}`;
             navigator.clipboard.writeText(linkBuatPacar).then(() => {
-                alert("Link berhasil disalin!\nSilakan kirim ke WA pasangan, jika di-klik dia otomatis masuk ke room ini secara real-time.");
+                alert("Link berhasil disalin! Silakan kirim ke WA pasangan, jika di-klik dia otomatis masuk ke room ini secara real-time.");
             }).catch(() => prompt("Salin manual teks ini:", linkBuatPacar));
         });
 
-        // 12. Fitur Download
         window.downloadSingle = () => {
             const link = document.createElement('a');
             link.download = `kanvas-ku-${generateId().substring(0,4)}.png`;
@@ -519,15 +542,16 @@
 
         window.downloadCombined = () => {
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas1.width;
-            tempCanvas.height = canvas1.height + canvas2.height + 20; 
+            tempCanvas.width = myCanvas.width;
+            tempCanvas.height = myCanvas.height + partnerCanvas.height + 20; 
             const tCtx = tempCanvas.getContext('2d');
             
-            tCtx.fillStyle = '#fff0f3'; // Background pink terang
+            tCtx.fillStyle = '#fff0f3'; // Background tema LDR
             tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             
-            tCtx.drawImage(canvas1, 0, 0);
-            tCtx.drawImage(canvas2, 0, canvas1.height + 20);
+            // Susun Kanvas Saya di Atas, Kanvas Pacar di Bawah
+            tCtx.drawImage(myCanvas, 0, 0);
+            tCtx.drawImage(partnerCanvas, 0, myCanvas.height + 20);
 
             const link = document.createElement('a');
             link.download = `couple-gabungan-${generateId().substring(0,4)}.png`;
