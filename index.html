@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruang Gambar Kita ❤️</title>
+    <style>
+        /* ========================================================
+           1. CSS (GAYA TAMPILAN) - Membuat desain estetik & pinky
+           ======================================================== */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffe6e6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #ff4d6d;
+            margin: 15px 0 5px 0;
+            font-size: 20px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        p {
+            color: #666;
+            margin: 0 0 15px 0;
+            font-size: 12px;
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        /* Kontainer Utama */
+        .container {
+            position: relative;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 3px solid #ffb3c1;
+            width: 90%;
+            max-width: 800px;
+            height: 60vh; /* Tinggi kanvas menyesuaikan layar HP */
+        }
+
+        /* Kanvas Gambar */
+        canvas {
+            display: block;
+            cursor: crosshair;
+            background-color: #ffffff;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Panel Tombol Kontrol di Bawah */
+        .controls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 15px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            align-items: center;
+            justify-content: center;
+            width: 85%;
+        }
+
+        /* Gaya Tombol & Input */
+        button, input[type="color"], input[type="range"] {
+            border: none;
+            background: #ff4d6d;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .btn-invite {
+            background: #4caf50;
+        }
+
+        .btn-clear {
+            background: #757575;
+        }
+
+        label {
+            font-size: 11px;
+            color: #444;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 60px;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Ruang Gambar Kita ❤️</h1>
+    <p>Klik "Ajak Pacar", lalu bagikan link undangannya ke WhatsApp pacarmu!</p>
+
+    <div class="container">
+        <!-- Area Kanvas tempat mencoret-coret -->
+        <canvas id="paintCanvas"></canvas>
+
+        <!-- Menu Kontrol -->
+        <div class="controls">
+            <button class="btn-invite" onclick="TogetherJS(this); return false;">Ajak Pacar</button>
+            
+            <label for="colorPicker">Warna:</label>
+            <input type="color" id="colorPicker" value="#ff4d6d">
+
+            <label for="lineWidth">Ukuran:</label>
+            <input type="range" id="lineWidth" min="1" max="20" value="5">
+
+            <button class="btn-clear" id="clearBtn">Hapus</button>
+        </div>
+    </div>
+
+    <!-- ========================================================
+       2. JAVASCRIPT (LIBRARY) - Untuk fitur LDR / Real-time sync
+       ======================================================== */ -->
+    <script>
+        // Konfigurasi TogetherJS agar pas untuk pacaran (mematikan fitur chat publik bawaan)
+        var TogetherJSConfig_siteName = "Kanvas Cinta Kita";
+        var TogetherJSConfig_toolName = "Ajak Pacar";
+        var TogetherJSConfig_disableWebRTC = true; 
+    </script>
+    <script src="https://togetherjs.com/togetherjs-min.js"></script>
+
+    <!-- ========================================================
+       3. JAVASCRIPT (LOGIKA) - Mengatur coretan jari di layar HP
+       ======================================================== */ -->
+    <script>
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const lineWidthInput = document.getElementById('lineWidth');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // Menyesuaikan ukuran resolusi internal kanvas dengan layar asli HP
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        window.addEventListener('load', resizeCanvas);
+        window.addEventListener('resize', resizeCanvas);
+
+        let painting = false;
+
+        function startPosition(e) {
+            painting = true;
+            draw(e);
+        }
+
+        function finishedPosition() {
+            painting = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!painting) return;
+
+            const rect = canvas.getBoundingClientRect();
+            // Mendukung koordinat sentuhan HP (touches) maupun mouse laptop
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.lineWidth = lineWidthInput.value;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = colorPicker.value;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // Deteksi Sentuhan Layar HP (Touchscreen)
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
+        canvas.addEventListener('touchend', finishedPosition);
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+
+        // Deteksi Mouse (Jika pacarmu buka di laptop)
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', finishedPosition);
+        canvas.addEventListener('mousemove', draw);
+
+        // Tombol Hapus Semua
+        clearBtn.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+    </script>
+
+</body>
+</html>
