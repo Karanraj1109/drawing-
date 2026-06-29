@@ -126,6 +126,7 @@
 
         /* Custom UI Elements */
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
         
         /* Lobby specific */
         .player-card {
@@ -189,6 +190,78 @@
             0% { transform: translateY(0) scale(1); opacity: 1; }
             100% { transform: translateY(-100px) scale(1.5); opacity: 0; }
         }
+
+        /* ========================================================
+           NEW CSS: PROFILE & AWARDS
+           ======================================================== */
+        .stat-box {
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+        }
+        .stat-box span { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+        .stat-box strong { font-size: 18px; color: white; }
+        
+        .history-item {
+            background: rgba(0,0,0,0.2);
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Awards Card */
+        .award-card {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 16px;
+            margin-bottom: 12px;
+            transition: 0.3s;
+            border: 1px solid var(--glass-border);
+        }
+        .award-card.unlocked {
+            background: rgba(255, 75, 130, 0.15);
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 15px rgba(255, 75, 130, 0.3);
+        }
+        .award-icon {
+            font-size: 36px;
+            margin-right: 16px;
+            filter: grayscale(100%);
+            opacity: 0.3;
+            transition: 0.3s;
+        }
+        .award-card.unlocked .award-icon {
+            filter: none;
+            opacity: 1;
+            text-shadow: 0 0 15px rgba(255,255,255,0.6);
+        }
+        .award-info { flex-grow: 1; }
+        .award-info h4 { margin: 0 0 4px 0; font-size: 16px; color: rgba(255,255,255,0.5); }
+        .award-card.unlocked .award-info h4 { color: white; }
+        .award-info p { margin: 0; font-size: 12px; color: var(--text-muted); }
+        
+        /* Progress Bar */
+        .progress-bg {
+            background: rgba(255,255,255,0.1);
+            height: 6px;
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+            width: 100%;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
     </style>
 </head>
 <body>
@@ -217,8 +290,57 @@
         </div>
 
         <div class="grid-2">
-            <button class="btn btn-outline glass">👤 Profile</button>
-            <button class="btn btn-outline glass">🏆 Awards</button>
+            <!-- UPDATED: Added onclick to navigate to Profile and Awards -->
+            <button class="btn btn-outline glass" onclick="app.showProfile()">👤 Profile</button>
+            <button class="btn btn-outline glass" onclick="app.showAwards()">🏆 Awards</button>
+        </div>
+    </div>
+
+    <!-- NEW: 2A. PROFILE SCREEN -->
+    <div id="screen-profile" class="screen">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 class="text-gradient" style="margin: 0;">My Profile</h3>
+            <button class="btn btn-outline" style="width: auto; padding: 4px 12px; margin:0;" onclick="app.switchScreen('screen-home')">Back</button>
+        </div>
+
+        <div class="glass" style="padding: 24px; text-align: center; margin-bottom: 16px;">
+            <div class="avatar" id="profile-avatar" style="width: 100px; height: 100px; font-size: 48px; margin: 0 auto 16px;">👤</div>
+            <h2 id="profile-name" style="margin-bottom: 4px;">Player</h2>
+            <p id="profile-uid" style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px; word-break: break-all;">UID: -</p>
+            
+            <div style="display: flex; gap: 8px; justify-content: center;">
+                <button class="btn btn-outline" style="padding: 8px 16px; font-size: 12px; width: auto;" onclick="app.editAvatar()">Ganti Avatar</button>
+                <button class="btn btn-outline" style="padding: 8px 16px; font-size: 12px; width: auto;" onclick="app.editName()">Edit Nama</button>
+            </div>
+        </div>
+
+        <h4 style="margin-bottom: 12px;">Statistics</h4>
+        <div class="grid-3" style="margin-bottom: 10px;">
+            <div class="stat-box"><span>Level</span><strong id="stat-level">1</strong></div>
+            <div class="stat-box"><span>XP</span><strong id="stat-xp">0</strong></div>
+            <div class="stat-box"><span>Match</span><strong id="stat-match">0</strong></div>
+        </div>
+        <div class="grid-3" style="margin-bottom: 20px;">
+            <div class="stat-box"><span>Win</span><strong id="stat-win" style="color: var(--success)">0</strong></div>
+            <div class="stat-box"><span>Lose</span><strong id="stat-lose" style="color: var(--danger)">0</strong></div>
+            <div class="stat-box"><span>Win Rate</span><strong id="stat-wr">0%</strong></div>
+        </div>
+
+        <h4 style="margin-bottom: 12px;">Recent History</h4>
+        <div id="profile-history" style="flex-grow: 1; overflow-y: auto;">
+            <!-- History will be injected here -->
+        </div>
+    </div>
+
+    <!-- NEW: 2B. AWARDS SCREEN -->
+    <div id="screen-awards" class="screen">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h3 class="text-gradient" style="margin: 0;">Achievements</h3>
+            <button class="btn btn-outline" style="width: auto; padding: 4px 12px; margin:0;" onclick="app.switchScreen('screen-home')">Back</button>
+        </div>
+
+        <div id="awards-list" style="flex-grow: 1; overflow-y: auto; padding-bottom: 20px;">
+            <!-- Awards will be injected here -->
         </div>
     </div>
 
@@ -293,7 +415,6 @@
     import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, arrayUnion, addDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
     // 2. FIREBASE CONFIGURATION (TEMPEL CONFIG ANDA DI SINI)
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
     const firebaseConfig = {
       apiKey: "AIzaSyDXF6bdnnDdRdq3D3BqPW17ZTORaJQ2JFk",
       authDomain: "couple-play-d5636.firebaseapp.com",
@@ -324,11 +445,10 @@
             this.chatUnsubscribe = null;
             this.gameState = {};
             
-            // Audio (Optional: tambahkan URL asset nanti)
+            // Audio
             this.sfxClick = new Audio(''); 
             
             this.initAuth();
-            this.setupEventListeners();
         }
 
         // --- UTILS & UI ---
@@ -346,21 +466,153 @@
 
         playClick() { if(this.sfxClick.src) this.sfxClick.play().catch(e=>{}); }
 
-        // --- AUTHENTICATION ---
+        // --- AUTHENTICATION & PROFILE CREATION ---
         async initAuth() {
             if(!auth) {
                 this.showToast("Setup Firebase Config dulu ya!");
                 return;
             }
-            onAuthStateChanged(auth, (user) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     this.user = user;
-                    setTimeout(() => this.switchScreen('screen-home'), 1500); // Fake loading for smooth UI
+                    await this.initUserProfile(); // NEW: Ensure profile exists
+                    setTimeout(() => this.switchScreen('screen-home'), 1500);
                 } else {
                     signInAnonymously(auth).catch(err => this.showToast("Gagal Login: " + err.message));
                 }
             });
         }
+
+        // NEW: Initialize User Profile in Firestore
+        async initUserProfile() {
+            const userRef = doc(db, "users", this.user.uid);
+            const snap = await getDoc(userRef);
+            if (!snap.exists()) {
+                await setDoc(userRef, {
+                    name: "Player " + Math.floor(Math.random() * 1000),
+                    avatar: "👤",
+                    level: 1,
+                    xp: 0,
+                    matches: 0,
+                    wins: 0,
+                    loses: 0,
+                    draws: 0,
+                    history: [], // [{game: 'Fast Tap', result: 'Win', date: '...'}]
+                    createdAt: serverTimestamp()
+                });
+            }
+        }
+
+        // NEW: Load & Show Profile Screen
+        async showProfile() {
+            this.playClick();
+            this.switchScreen('screen-profile');
+            
+            const snap = await getDoc(doc(db, "users", this.user.uid));
+            if(snap.exists()) {
+                const data = snap.data();
+                
+                document.getElementById('profile-avatar').innerText = data.avatar || "👤";
+                document.getElementById('profile-name').innerText = data.name || "Player";
+                document.getElementById('profile-uid').innerText = "UID: " + this.user.uid;
+                
+                document.getElementById('stat-level').innerText = data.level || 1;
+                document.getElementById('stat-xp').innerText = data.xp || 0;
+                
+                const matches = data.matches || 0;
+                const wins = data.wins || 0;
+                const loses = data.loses || 0;
+                
+                document.getElementById('stat-match').innerText = matches;
+                document.getElementById('stat-win').innerText = wins;
+                document.getElementById('stat-lose').innerText = loses;
+                
+                let wr = matches > 0 ? Math.round((wins / matches) * 100) : 0;
+                document.getElementById('stat-wr').innerText = wr + "%";
+
+                // Render History
+                const historyContainer = document.getElementById('profile-history');
+                historyContainer.innerHTML = '';
+                if(data.history && data.history.length > 0) {
+                    data.history.reverse().forEach(h => {
+                        let color = h.result === 'Win' ? 'var(--success)' : (h.result === 'Lose' ? 'var(--danger)' : 'white');
+                        historyContainer.innerHTML += `
+                            <div class="history-item">
+                                <div>
+                                    <strong style="display:block; font-size:14px;">${h.game}</strong>
+                                    <span style="font-size:11px; color:var(--text-muted);">${h.date}</span>
+                                </div>
+                                <span style="font-weight:bold; color:${color};">${h.result}</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    historyContainer.innerHTML = `<p style="text-align:center; color:var(--text-muted); font-size:12px; margin-top:20px;">Belum ada pertandingan.</p>`;
+                }
+            }
+        }
+
+        // NEW: Update Name
+        async editName() {
+            const newName = prompt("Masukkan nama baru:");
+            if(newName && newName.trim() !== "") {
+                await updateDoc(doc(db, "users", this.user.uid), { name: newName.trim() });
+                this.showProfile();
+            }
+        }
+
+        // NEW: Update Avatar
+        async editAvatar() {
+            const newAvatar = prompt("Masukkan emoji untuk Avatar kamu:\n(Contoh: 🦊, 🐯, 🐼, 👽)");
+            if(newAvatar && newAvatar.trim() !== "") {
+                await updateDoc(doc(db, "users", this.user.uid), { avatar: newAvatar.trim() });
+                this.showProfile();
+            }
+        }
+
+        // NEW: Load & Show Awards Screen
+        async showAwards() {
+            this.playClick();
+            this.switchScreen('screen-awards');
+            
+            const snap = await getDoc(doc(db, "users", this.user.uid));
+            let data = snap.exists() ? snap.data() : { matches: 0, wins: 0, history: [] };
+            
+            // Define Achievements based on user stat target
+            const achievementsList = [
+                { id: 'first_match', icon: '❤️', title: 'First Match', desc: 'Mainkan pertandingan pertamamu', target: 1, current: data.matches || 0 },
+                { id: 'first_win', icon: '🏆', title: 'First Win', desc: 'Menangkan 1 pertandingan', target: 1, current: data.wins || 0 },
+                { id: 'win_10', icon: '🔥', title: 'Win 10 Games', desc: 'Menangkan 10 pertandingan', target: 10, current: data.wins || 0 },
+                { id: 'win_50', icon: '⭐', title: 'Win 50 Games', desc: 'Menangkan 50 pertandingan', target: 50, current: data.wins || 0 },
+                { id: 'artist', icon: '🎨', title: 'Artist', desc: 'Main Draw Together 5 kali', target: 5, current: (data.history || []).filter(h => h.game === 'Draw Together').length },
+                { id: 'funny_couple', icon: '😂', title: 'Funny Couple', desc: 'Main Tebak Emoji 5 kali', target: 5, current: (data.history || []).filter(h => h.game === 'Tebak Emoji').length },
+                { id: 'soulmate', icon: '💌', title: 'Soulmate', desc: 'Main Who Knows Me Better 5 kali', target: 5, current: (data.history || []).filter(h => h.game === 'Who Knows Me Better').length },
+                { id: 'legend', icon: '👑', title: 'Couple Legend', desc: 'Main total 100 pertandingan', target: 100, current: data.matches || 0 }
+            ];
+
+            const listContainer = document.getElementById('awards-list');
+            listContainer.innerHTML = '';
+
+            achievementsList.forEach(ach => {
+                let isUnlocked = ach.current >= ach.target;
+                let progressPercent = Math.min((ach.current / ach.target) * 100, 100);
+                
+                listContainer.innerHTML += `
+                    <div class="award-card ${isUnlocked ? 'unlocked' : ''}">
+                        <div class="award-icon">${ach.icon}</div>
+                        <div class="award-info">
+                            <h4>${ach.title}</h4>
+                            <p>${ach.desc}</p>
+                            <div class="progress-bg">
+                                <div class="progress-fill" style="width: ${progressPercent}%;"></div>
+                            </div>
+                            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 4px; text-align: right;">${ach.current} / ${ach.target}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
 
         // --- ROOM MANAGEMENT ---
         generateRoomCode() {
@@ -371,12 +623,20 @@
             this.playClick();
             const code = this.generateRoomCode();
             try {
+                // Get user info to populate lobby
+                const userSnap = await getDoc(doc(db, "users", this.user.uid));
+                const uData = userSnap.exists() ? userSnap.data() : { avatar: '👑', name: 'Host' };
+
                 await setDoc(doc(db, "rooms", code), {
                     host: this.user.uid,
+                    hostAvatar: uData.avatar,
+                    hostName: uData.name,
                     guest: null,
+                    guestAvatar: null,
+                    guestName: null,
                     hostReady: false,
                     guestReady: false,
-                    status: 'lobby', // lobby, playing
+                    status: 'lobby',
                     gameType: null,
                     gameState: {},
                     createdAt: serverTimestamp()
@@ -402,7 +662,15 @@
                 return this.showToast("Room penuh (Maksimal 2 orang)!");
             }
 
-            await updateDoc(roomRef, { guest: this.user.uid });
+            // Get user info to populate lobby
+            const userSnap = await getDoc(doc(db, "users", this.user.uid));
+            const uData = userSnap.exists() ? userSnap.data() : { avatar: '💖', name: 'Partner' };
+
+            await updateDoc(roomRef, { 
+                guest: this.user.uid,
+                guestAvatar: uData.avatar,
+                guestName: uData.name
+            });
             this.isHost = false;
             this.roomId = codeInput;
             this.enterLobby();
@@ -426,11 +694,14 @@
                 }
                 
                 const data = docSnap.data();
-                this.gameState = data.gameState; // Simpan state terbaru untuk game
+                this.gameState = data.gameState; 
 
-                // Update UI Lobby
-                document.getElementById('guest-avatar').innerText = data.guest ? "💖" : "⏳";
-                document.getElementById('guest-name').innerText = data.guest ? "Partner" : "Waiting...";
+                // Update UI Lobby with actual Name and Avatar
+                document.getElementById('host-avatar').innerText = data.hostAvatar || "👑";
+                document.getElementById('host-name').innerText = data.hostName || "Host";
+
+                document.getElementById('guest-avatar').innerText = data.guest ? (data.guestAvatar || "💖") : "⏳";
+                document.getElementById('guest-name').innerText = data.guest ? (data.guestName || "Partner") : "Waiting...";
                 
                 const hostStatus = document.getElementById('host-status');
                 hostStatus.innerText = data.hostReady ? "Ready" : "Not Ready";
@@ -440,7 +711,6 @@
                 guestStatus.innerText = data.guestReady ? "Ready" : "Not Ready";
                 guestStatus.className = "status " + (data.guestReady ? "ready" : "wait");
 
-                // Start button logic
                 const btnReady = document.getElementById('btn-ready');
                 const btnStart = document.getElementById('btn-start-game');
                 
@@ -460,7 +730,6 @@
                     btnStart.style.display = "none";
                 }
 
-                // Handle Game Start routing Sync
                 if(data.status === 'playing' && data.gameType) {
                     if(document.getElementById('screen-active-game').className !== "screen active") {
                         this.renderGameUI(data.gameType);
@@ -490,14 +759,6 @@
         async leaveRoom(deleteForHost = true) {
             if(this.roomUnsubscribe) this.roomUnsubscribe();
             if(this.chatUnsubscribe) this.chatUnsubscribe();
-            
-            if(this.isHost && deleteForHost && this.roomId) {
-                // Delete room on leave
-                try {
-                    // Gunakan deleteDoc() kalau import ditambahkan, sementara biarkan garbage collected 
-                    // di production Firestore rules, atau biarkan statenya inactive.
-                } catch(e){}
-            }
             this.roomId = null;
             this.isHost = false;
             this.switchScreen('screen-home');
@@ -536,7 +797,6 @@
                 box.scrollTop = box.scrollHeight;
             });
             
-            // Allow enter to send
             document.getElementById('chat-input').onkeypress = (e) => {
                 if(e.key === 'Enter') this.sendMessage();
             };
@@ -568,7 +828,6 @@
             });
         }
 
-        // Provide starting variables per game
         getInitialGameState(type) {
             switch(type) {
                 case 'fasttap': return { hostScore: 0, guestScore: 0, timeLeft: 10, playing: true };
@@ -578,7 +837,6 @@
             }
         }
 
-        // Render skeleton UI based on game
         renderGameUI(type) {
             const area = document.getElementById('game-area');
             const title = document.getElementById('game-title');
@@ -595,7 +853,6 @@
                     <h2 id="ft-timer" style="font-size:40px; text-align:center;">10s</h2>
                     <div class="glass tap-area tap-me" id="btn-tap">TAP!</div>
                 `;
-                // Timer Logic for host
                 if(this.isHost) {
                     this.tapInterval = setInterval(async () => {
                         if(this.gameState.timeLeft > 0) {
@@ -611,7 +868,6 @@
 
                 document.getElementById('btn-tap').onclick = () => {
                     if(!this.gameState.playing) return;
-                    // Floating effect
                     this.spawnHeart();
                     const scoreKey = this.isHost ? "gameState.hostScore" : "gameState.guestScore";
                     const currentScore = this.isHost ? this.gameState.hostScore : this.gameState.guestScore;
@@ -666,7 +922,6 @@
                 }
             }
             else {
-                // Placeholder for other games to save token size, but fully integrated structurally
                 title.innerText = "Game " + type;
                 area.innerHTML = `
                     <div class="glass" style="padding: 30px; text-align: center;">
@@ -677,7 +932,6 @@
             }
         }
 
-        // Reactively update Game UI based on firestore snapshot
         updateGameStateUI(type, state) {
             if (type === 'fasttap') {
                 const myScore = this.isHost ? state.hostScore : state.guestScore;
@@ -706,9 +960,7 @@
                 const qEl = document.getElementById('wk-question');
                 if(qEl) qEl.innerText = state.question;
 
-                // Cek jika keduanya sudah jawab
                 if(state.hostAnswer && state.guestAnswer && !state.revealed) {
-                    // Auto reveal
                     if(this.isHost) {
                         updateDoc(doc(db, "rooms", this.roomId), { "gameState.revealed": true });
                     }
@@ -727,7 +979,6 @@
             }
         }
 
-        // UI Effects
         spawnHeart() {
             const heart = document.createElement('div');
             heart.className = 'heart';
@@ -737,8 +988,6 @@
             document.getElementById('game-area').appendChild(heart);
             setTimeout(() => heart.remove(), 3000);
         }
-
-        setupEventListeners() {}
     }
 
     // Init App Globally
