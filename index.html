@@ -287,16 +287,22 @@
      JAVASCRIPT: FIREBASE & APP LOGIC
      ======================================================== -->
 <script type="module">
+    // 1. FIREBASE SDK IMPORTS
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, arrayUnion, addDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // 2. FIREBASE CONFIGURATION (TEMPEL CONFIG ANDA DI SINI)
     // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDXF6bdnnDdRdq3D3BqPW17ZTORaJQ2JFk",
-  authDomain: "couple-play-d5636.firebaseapp.com",
-  projectId: "couple-play-d5636",
-  storageBucket: "couple-play-d5636.firebasestorage.app",
-  messagingSenderId: "220959170432",
-  appId: "1:220959170432:web:e9e4537b4e294cb524eb65",
-  measurementId: "G-JVENKWY99S"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyDXF6bdnnDdRdq3D3BqPW17ZTORaJQ2JFk",
+      authDomain: "couple-play-d5636.firebaseapp.com",
+      projectId: "couple-play-d5636",
+      storageBucket: "couple-play-d5636.firebasestorage.app",
+      messagingSenderId: "220959170432",
+      appId: "1:220959170432:web:e9e4537b4e294cb524eb65",
+      measurementId: "G-JVENKWY99S"
+    };  
 
     // Prevent error if config is empty during first run layout check
     let appFirebase, auth, db;
